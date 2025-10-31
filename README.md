@@ -33,7 +33,9 @@ De applicatie draait op http://localhost:3000
 
 Standaard gebruikt de applicatie de demo API key uit `server/db.json`: `demo-key-123`
 
-Voor productie gebruik, stel een environment variabele in:
+Voor admin functies (zoals token revocation) is er een aparte admin API key: `admin-key-456`
+
+Voor productie gebruik, stel environment variabelen in:
 
 ```bash
 # Enkele API key
@@ -41,6 +43,9 @@ API_KEY=jouw-geheime-key npm start
 
 # Meerdere API keys (komma gescheiden)
 API_KEYS=key1,key2,key3 npm start
+
+# Admin API key
+ADMIN_API_KEY=jouw-admin-key npm start
 ```
 
 Environment keys hebben prioriteit boven keys in db.json.
@@ -91,6 +96,50 @@ De applicatie is beschikbaar op http://localhost:3000
 - `POST /api/stamps` - Voeg stempel toe
 - `POST /api/redeem` - Verzilver stempels
 
+### Admin endpoints (vereist admin x-api-key header)
+
+- `POST /api/operators/revoke` - Revoke operator tokens
+
+#### Token revocation voorbeelden
+
+Revoke een specifieke token:
+```bash
+curl -X POST http://localhost:3000/api/operators/revoke \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: admin-key-456" \
+  -d '{"token": "operator-token-xyz"}'
+```
+
+Revoke alle tokens van een operator (op basis van ID):
+```bash
+curl -X POST http://localhost:3000/api/operators/revoke \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: admin-key-456" \
+  -d '{"operatorId": "op-123"}'
+```
+
+Revoke alle tokens van een operator (op basis van naam):
+```bash
+curl -X POST http://localhost:3000/api/operators/revoke \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: admin-key-456" \
+  -d '{"operatorName": "John Doe"}'
+```
+
+Antwoord:
+```json
+{
+  "ok": true,
+  "removed": [
+    {
+      "token": "operator-token-xyz",
+      "operatorId": "op-123",
+      "operatorName": "John Doe"
+    }
+  ]
+}
+```
+
 ## Data persistentie
 
 De applicatie gebruikt `server/db.json` voor data opslag. Dit is een eenvoudig JSON bestand met:
@@ -99,6 +148,8 @@ De applicatie gebruikt `server/db.json` voor data opslag. Dit is een eenvoudig J
 - Verzilveringen
 - Activity logs
 - API keys
+- Admin API keys
+- Operator tokens
 
 **Let op**: Voor productie gebruik wordt een echte database aanbevolen.
 
