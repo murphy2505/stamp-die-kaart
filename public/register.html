@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registratie - Stamp-die-kaart</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .wallet-link {
+      display: block;
+      margin-top: 15px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #667eea;
+      font-weight: 500;
+      text-align: center;
+      transition: background 0.3s;
+    }
+    
+    .wallet-link:hover {
+      background: #e9ecef;
+    }
+    
+    .info {
+      background: #e7f3ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #014361;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎫 Welkom bij Stamp-die-kaart</h1>
+    <p class="subtitle">Registreer je nu en spaar voor gratis producten!</p>
+    
+    <div id="message" class="message"></div>
+    
+    <form id="registerForm">
+      <div class="form-group">
+        <label for="name">Naam *</label>
+        <input type="text" id="name" name="name" required placeholder="Vul je naam in">
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email *</label>
+        <input type="email" id="email" name="email" required placeholder="je@email.nl">
+      </div>
+      
+      <div class="form-group">
+        <label for="phone">Telefoonnummer (optioneel)</label>
+        <input type="tel" id="phone" name="phone" placeholder="06-12345678">
+      </div>
+      
+      <button type="submit" id="submitBtn">Registreren</button>
+    </form>
+    
+    <div id="walletLinkContainer" style="display: none;">
+      <div class="info">
+        ✅ Je bent succesvol geregistreerd! Bewaar de onderstaande link om je stempelkaart te bekijken.
+      </div>
+      <a href="#" id="walletLink" class="wallet-link" target="_blank">
+        📱 Open mijn stempelkaart
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const messageDiv = document.getElementById('message');
+    const submitBtn = document.getElementById('submitBtn');
+    const walletLinkContainer = document.getElementById('walletLinkContainer');
+    const walletLink = document.getElementById('walletLink');
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.style.display = 'block';
+      
+      if (type === 'error') {
+        setTimeout(() => {
+          messageDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim()
+      };
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Bezig met registreren...';
+      
+      try {
+        const response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showMessage('Registratie succesvol!', 'success');
+          form.style.display = 'none';
+          
+          // Toon wallet link
+          const walletUrl = `${window.location.origin}/wallet/${data.id}`;
+          walletLink.href = walletUrl;
+          walletLinkContainer.style.display = 'block';
+          
+        } else if (response.status === 409) {
+          // Email bestaat al
+          showMessage('Dit emailadres is al geregistreerd.', 'error');
+          if (data.customerId) {
+            const walletUrl = `${window.location.origin}/wallet/${data.customerId}`;
+            walletLink.href = walletUrl;
+            walletLinkContainer.style.display = 'block';
+            form.style.display = 'none';
+          }
+        } else {
+          showMessage(data.error || 'Er ging iets mis bij het registreren.', 'error');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Kon geen verbinding maken met de server.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Registreren';
+      }
+    });
+  </script>
+</body>
+</html>
