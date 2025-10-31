@@ -19,7 +19,8 @@ let db = {
   stamps: [],
   redemptions: [],
   logs: [],
-  apiKeys: []
+  apiKeys: [],
+  tokens: []
 };
 
 // Write queue voor db.json (voorkomt race conditions)
@@ -108,6 +109,38 @@ function verifyApiKey(req, res, next) {
   }
   
   return res.status(401).json({ error: 'Ongeldige API key' });
+}
+
+// Middleware: Verify Admin API Key
+function requireAdminApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  
+  // Check voor admin API key in environment
+  const adminApiKey = process.env.ADMIN_API_KEY;
+  
+  if (adminApiKey && apiKey === adminApiKey) {
+    req.operator = 'admin';
+    return next();
+  }
+  
+  // Fallback naar db.json admin keys
+  if (db.adminApiKeys && db.adminApiKeys.includes(apiKey)) {
+    req.operator = 'admin';
+    return next();
+  }
+  
+  return res.status(403).json({ error: 'Admin rechten vereist' });
+}
+
+// Helper: Database lezen
+function readDB() {
+  return db;
+}
+
+// Helper: Database schrijven
+async function writeDB(newDb) {
+  db = newDb;
+  await saveDatabase();
 }
 
 // Routes
@@ -425,6 +458,86 @@ app.get('/wallet/:customerId', (req, res) => {
     </body>
     </html>
   `);
+});
+
+// POST /api/operators/revoke - Revoke tokens (vereist admin API key)
+app.post('/api/operators/revoke', requireAdminApiKey, async (req, res) => {
+  try {
+    const { token, operatorId, operatorName } = req.body;
+    
+    // Validatie: minimaal één parameter moet aanwezig zijn
+    if (!token && !operatorId && !operatorName) {
+      return res.status(400).json({ 
+        error: 'Minimaal één van de volgende parameters is verplicht: token, operatorId, operatorName' 
+      });
+    }
+    
+    const currentDb = readDB();
+    let tokensToRemove = [];
+    let removed = [];
+    
+    // Filter tokens op basis van de meegegeven criteria
+    if (token) {
+      // Revoke specifieke token
+      tokensToRemove = currentDb.tokens.filter(t => t.token === token);
+      currentDb.tokens = currentDb.tokens.filter(t => t.token !== token);
+    } else if (operatorId) {
+      // Revoke alle tokens van een operator (op basis van ID)
+      tokensToRemove = currentDb.tokens.filter(t => t.operatorId === operatorId);
+      currentDb.tokens = currentDb.tokens.filter(t => t.operatorId !== operatorId);
+    } else if (operatorName) {
+      // Revoke alle tokens van een operator (op basis van naam)
+      tokensToRemove = currentDb.tokens.filter(t => t.operatorName === operatorName);
+      currentDb.tokens = currentDb.tokens.filter(t => t.operatorName !== operatorName);
+    }
+    
+    // Maak samenvatting van verwijderde tokens
+    removed = tokensToRemove.map(t => ({
+      token: t.token,
+      operatorId: t.operatorId,
+      operatorName: t.operatorName
+    }));
+    
+    // Log de actie
+    const logEntry = {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      action: 'token_revoke',
+      details: {
+        type: 'token_revoke',
+        ts: new Date().toISOString(),
+        performedBy: req.operator || 'admin',
+        token: token || null,
+        operatorId: operatorId || null,
+        operatorName: operatorName || null,
+        removed: removed
+      }
+    };
+    
+    currentDb.logs.push(logEntry);
+    
+    // Bewaar alleen laatste 1000 logs
+    if (currentDb.logs.length > 1000) {
+      currentDb.logs = currentDb.logs.slice(-1000);
+    }
+    
+    // Schrijf database
+    await writeDB(currentDb);
+    
+    // Stuur SSE event
+    sendSSE('token_revoked', { 
+      performedBy: req.operator || 'admin',
+      removed: removed.length 
+    });
+    
+    res.json({ 
+      ok: true, 
+      removed: removed
+    });
+  } catch (error) {
+    console.error('Fout bij revoking token:', error);
+    res.status(500).json({ error: 'Server fout' });
+  }
 });
 
 // GET /api/logs - Haal logs op
