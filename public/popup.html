@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Popup - Stamp Die Kaart</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body { height:100%; margin:0; font-family: system-ui, -apple-system, Arial; background: linear-gradient(180deg,#e6fffb,#f0fff4); display:flex; align-items:center; justify-content:center; }
+    .panel { width:420px; max-width:96%; background: rgba(255,255,255,0.75); border-radius:18px; padding:18px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,0.08); }
+    h1 { margin:0 0 8px; font-size:20px; }
+    input { width:100%; padding:12px; margin-top:8px; border-radius:8px; border:1px solid #dfe; font-size:16px; }
+    .actions { display:flex; gap:8px; margin-top:12px; }
+    button { flex:1; padding:12px; border-radius:10px; border:0; font-size:16px; }
+    .add { background:#00b894; color:#fff; }
+    .redeem { background:#0984e3; color:#fff; }
+    .skip { background:#dfe6e9; color:#222; }
+    .small { margin-top:8px; color:#333; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Afrekenen — zoek klant</h1>
+    <input id="phone" placeholder="Telefoonnummer" />
+    <div class="actions">
+      <button id="btnAdd" class="add">+1 stempel</button>
+      <button id="btnRedeem" class="redeem">Beloning</button>
+      <button id="btnSkip" class="skip">Overslaan</button>
+    </div>
+    <div id="info" class="small"></div>
+  </div>
+
+  <script>
+    const API_KEY = "demo-key-123"; // vervang op device met env/secure storage
+    const phoneInput = document.getElementById("phone");
+    const info = document.getElementById("info");
+
+    async function findCustomer(phone) {
+      if (!phone) return null;
+      const res = await fetch(`/api/customers?phone=${encodeURIComponent(phone)}`);
+      if (res.ok) {
+        const json = await res.json();
+        return json.customer;
+      }
+      return null;
+    }
+
+    async function addStamp(phone) {
+      const customer = await findCustomer(phone);
+      if (!customer) { info.textContent = "Klant niet gevonden — registreer eerst."; return; }
+      const res = await fetch("/api/stamps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "x-operator": "sunmi-terminal" },
+        body: JSON.stringify({ phone: customer.phone })
+      });
+      const json = await res.json();
+      if (!res.ok) info.textContent = `Fout: ${json.error || JSON.stringify(json)}`;
+      else info.textContent = `Stempel toegevoegd. Totaal: ${json.stampsTotal}`;
+    }
+
+    async function redeem(phone) {
+      const customer = await findCustomer(phone);
+      if (!customer) { info.textContent = "Klant niet gevonden — registreer eerst."; return; }
+      const res = await fetch("/api/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "x-operator": "sunmi-terminal" },
+        body: JSON.stringify({ phone: customer.phone })
+      });
+      const json = await res.json();
+      if (!res.ok) info.textContent = `Fout: ${json.error || JSON.stringify(json)}`;
+      else info.textContent = `Beloning ingewisseld. #${json.redemption.id}`;
+    }
+
+    document.getElementById("btnAdd").addEventListener("click", () => addStamp(phoneInput.value.trim()));
+    document.getElementById("btnRedeem").addEventListener("click", () => redeem(phoneInput.value.trim()));
+    document.getElementById("btnSkip").addEventListener("click", () => info.textContent = "Overgeslagen");
+
+    // Optional: live updates via SSE
+    const evt = new EventSource("/sse");
+    evt.addEventListener("stamp", e => {
+      const d = JSON.parse(e.data);
+      console.log("stamp event", d);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Registratie - Stamp-die-kaart</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Arial; background: linear-gradient(180deg,#e6fffb,#f0fff4); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { width: 420px; max-width:94%; background: rgba(255,255,255,0.7); border-radius:16px; padding:20px; box-shadow:0 8px 30px rgba(2,6,23,0.08); backdrop-filter: blur(6px); }
+    h1 { font-size:20px; margin:0 0 12px; }
+    label { display:block; margin-top:8px; font-weight:600; }
+    input { width:100%; padding:12px; margin-top:6px; border-radius:8px; border:1px solid #dfe; }
+    button { margin-top:14px; width:100%; padding:14px; border-radius:10px; border:0; background:#00b894; color:white; font-size:16px; }
+    .small { font-size:13px; color:#333; margin-top:8px; }
+    .wallet-links { display:flex; gap:8px; margin-top:12px;}
+    .wallet-links a { flex:1; text-align:center; padding:10px; border-radius:8px; background:#fff; border:1px solid #dfe; color:#333; text-decoration:none; }
+    pre { background:#f7fff9; padding:10px; border-radius:8px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Maak digitale stempelkaart</h1>
+    <form id="form">
+      <label>Naam</label>
+      <input id="name" required />
+      <label>Telefoon (uniek)</label>
+      <input id="phone" required />
+      <label>E-mail (optioneel)</label>
+      <input id="email" />
+      <button type="submit">Registreer</button>
+    </form>
+
+    <div id="result" style="display:none;">
+      <h2>Kaart aangemaakt</h2>
+      <div id="cardinfo"></div>
+      <div class="wallet-links">
+        <a id="apple" href="#" download>Voeg toe aan Apple Wallet</a>
+        <a id="google" href="#" download>Voeg toe aan Google Wallet</a>
+      </div>
+      <p class="small">Op Sunmi: open deze pagina in de Sunmi-browser of scan QR-code met een mobiel</p>
+      <pre id="raw"></pre>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("form");
+    const result = document.getElementById("result");
+    const cardinfo = document.getElementById("cardinfo");
+    const raw = document.getElementById("raw");
+    const apple = document.getElementById("apple");
+    const google = document.getElementById("google");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, email })
+      });
+      const data = await res.json();
+      const customer = data.customer || (data.existing && data.customer);
+      if (!customer) {
+        alert("Kon klant niet aanmaken");
+        return;
+      }
+      result.style.display = "block";
+      cardinfo.innerHTML = `<strong>${customer.name}</strong><br/>${customer.phone}`;
+      raw.textContent = JSON.stringify(customer, null, 2);
+
+      // Wallet links: point to /wallet/:id (downloadable JSON)
+      const url = `/wallet/${customer.id}`;
+      apple.href = url;
+      google.href = url;
+    });
+  </script>
+</body>
+</html>
