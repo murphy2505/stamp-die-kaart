@@ -15,12 +15,22 @@
     .redeem { background:#0984e3; color:#fff; }
     .skip { background:#dfe6e9; color:#222; }
     .small { margin-top:8px; color:#333; font-size:14px; }
+    .login { display:flex; gap:8px; margin-top:12px; }
   </style>
 </head>
 <body>
   <div class="panel">
     <h1>Afrekenen — zoek klant</h1>
     <input id="phone" placeholder="Telefoonnummer" />
+
+    <div class="login">
+      <input id="opName" placeholder="Operator naam of ID" />
+      <input id="opPin" placeholder="PIN" type="password" />
+      <button id="btnLogin">Login</button>
+    </div>
+
+    <div style="margin-top:8px;">Ingelogd als: <span id="who">(niet ingelogd)</span> <button id="btnLogout" style="display:none;">Logout</button></div>
+
     <div class="actions">
       <button id="btnAdd" class="add">+1 stempel</button>
       <button id="btnRedeem" class="redeem">Beloning</button>
@@ -30,56 +40,77 @@
   </div>
 
   <script>
-    const API_KEY = "demo-key-123"; // vervang op device met env/secure storage
-    const phoneInput = document.getElementById("phone");
-    const info = document.getElementById("info");
+    // Token-based operator flow
+    const phoneInput = document.getElementById('phone');
+    const info = document.getElementById('info');
+    const who = document.getElementById('who');
+    const btnLogout = document.getElementById('btnLogout');
 
-    async function findCustomer(phone) {
-      if (!phone) return null;
-      const res = await fetch(`/api/customers?phone=${encodeURIComponent(phone)}`);
-      if (res.ok) {
-        const json = await res.json();
-        return json.customer;
+    function setToken(t, op) {
+      if (t) {
+        localStorage.setItem('stamp_token', t);
+        localStorage.setItem('stamp_operator', JSON.stringify(op));
+        who.textContent = op.name || op.id || 'operator';
+        btnLogout.style.display = 'inline-block';
+      } else {
+        localStorage.removeItem('stamp_token');
+        localStorage.removeItem('stamp_operator');
+        who.textContent = '(niet ingelogd)';
+        btnLogout.style.display = 'none';
       }
-      return null;
+    }
+
+    function getToken() { return localStorage.getItem('stamp_token'); }
+    function getOperator() { const v = localStorage.getItem('stamp_operator'); return v ? JSON.parse(v) : null; }
+
+    async function login() {
+      const name = document.getElementById('opName').value.trim();
+      const pin = document.getElementById('opPin').value.trim();
+      if (!name || !pin) { info.textContent = 'Vul operator en PIN in'; return; }
+      const res = await fetch('/api/operators/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ name, pin }) });
+      const json = await res.json();
+      if (!res.ok) { info.textContent = json.error || 'Login mislukt'; return; }
+      setToken(json.token, json.operator);
+      info.textContent = 'Ingelogd als ' + json.operator.name;
     }
 
     async function addStamp(phone) {
-      const customer = await findCustomer(phone);
-      if (!customer) { info.textContent = "Klant niet gevonden — registreer eerst."; return; }
-      const res = await fetch("/api/stamps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "x-operator": "sunmi-terminal" },
-        body: JSON.stringify({ phone: customer.phone })
-      });
+      const customerPhone = phone;
+      if (!customerPhone) { info.textContent = 'Vul telefoonnummer in'; return; }
+      const token = getToken();
+      const headers = { 'Content-Type':'application/json' };
+      if (token) headers['authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/stamps', { method:'POST', headers, body: JSON.stringify({ phone: customerPhone }) });
       const json = await res.json();
-      if (!res.ok) info.textContent = `Fout: ${json.error || JSON.stringify(json)}`;
+      if (!res.ok) info.textContent = json.error || JSON.stringify(json);
       else info.textContent = `Stempel toegevoegd. Totaal: ${json.stampsTotal}`;
     }
 
     async function redeem(phone) {
-      const customer = await findCustomer(phone);
-      if (!customer) { info.textContent = "Klant niet gevonden — registreer eerst."; return; }
-      const res = await fetch("/api/redeem", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "x-operator": "sunmi-terminal" },
-        body: JSON.stringify({ phone: customer.phone })
-      });
+      const customerPhone = phone;
+      if (!customerPhone) { info.textContent = 'Vul telefoonnummer in'; return; }
+      const token = getToken();
+      const headers = { 'Content-Type':'application/json' };
+      if (token) headers['authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/redeem', { method:'POST', headers, body: JSON.stringify({ phone: customerPhone }) });
       const json = await res.json();
-      if (!res.ok) info.textContent = `Fout: ${json.error || JSON.stringify(json)}`;
+      if (!res.ok) info.textContent = json.error || JSON.stringify(json);
       else info.textContent = `Beloning ingewisseld. #${json.redemption.id}`;
     }
 
-    document.getElementById("btnAdd").addEventListener("click", () => addStamp(phoneInput.value.trim()));
-    document.getElementById("btnRedeem").addEventListener("click", () => redeem(phoneInput.value.trim()));
-    document.getElementById("btnSkip").addEventListener("click", () => info.textContent = "Overgeslagen");
+    document.getElementById('btnAdd').addEventListener('click', () => addStamp(phoneInput.value.trim()));
+    document.getElementById('btnRedeem').addEventListener('click', () => redeem(phoneInput.value.trim()));
+    document.getElementById('btnSkip').addEventListener('click', () => info.textContent = 'Overgeslagen');
+    document.getElementById('btnLogin').addEventListener('click', login);
+    btnLogout.addEventListener('click', () => { setToken(null); info.textContent = 'Uitgelogd'; });
 
-    // Optional: live updates via SSE
-    const evt = new EventSource("/sse");
-    evt.addEventListener("stamp", e => {
-      const d = JSON.parse(e.data);
-      console.log("stamp event", d);
-    });
+    // restore
+    const existingOp = getOperator();
+    if (existingOp) { who.textContent = existingOp.name || existingOp.id; btnLogout.style.display = 'inline-block'; }
+
+    // SSE (optional)
+    const evt = new EventSource('/sse');
+    evt.addEventListener('stamp', e => { console.log('stamp', e.data); });
   </script>
 </body>
 </html>
