@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Stamp-die-kaart</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .stat-card.primary .stat-value {
+      color: #667eea;
+    }
+    
+    .stat-card.success .stat-value {
+      color: #28a745;
+    }
+    
+    .stat-card.info .stat-value {
+      color: #17a2b8;
+    }
+    
+    .stat-card.warning .stat-value {
+      color: #ffc107;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 968px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .card h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #28a745;
+      color: white;
+    }
+    
+    .activity-list {
+      list-style: none;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .activity-item {
+      padding: 15px;
+      border-left: 3px solid #667eea;
+      background: #f8f9fa;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .activity-item.new {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+    }
+    
+    .activity-time {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .activity-text {
+      color: #333;
+      font-size: 14px;
+    }
+    
+    .top-customers {
+      list-style: none;
+    }
+    
+    .customer-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #f8f9fa;
+      margin-bottom: 8px;
+      border-radius: 8px;
+    }
+    
+    .customer-name {
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .customer-stamps {
+      background: #667eea;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+    
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #28a745;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Stamp-die-kaart Dashboard</h1>
+    <p>Real-time overzicht van alle activiteiten</p>
+    <div class="connection-status">
+      <div class="status-dot"></div>
+      <span id="connectionStatus">Verbonden met live updates</span>
+    </div>
+  </div>
+  
+  <div class="stats-grid">
+    <div class="stat-card primary">
+      <div class="stat-label">Totaal klanten</div>
+      <div class="stat-value" id="totalCustomers">0</div>
+    </div>
+    
+    <div class="stat-card success">
+      <div class="stat-label">Totaal stempels</div>
+      <div class="stat-value" id="totalStamps">0</div>
+    </div>
+    
+    <div class="stat-card info">
+      <div class="stat-label">Verzilverd</div>
+      <div class="stat-value" id="totalRedemptions">0</div>
+    </div>
+    
+    <div class="stat-card warning">
+      <div class="stat-label">Actieve klanten</div>
+      <div class="stat-value" id="activeCustomers">0</div>
+    </div>
+  </div>
+  
+  <div class="content-grid">
+    <div class="card">
+      <h2>
+        📝 Live activiteit
+        <span class="status-badge" id="activityBadge">Live</span>
+      </h2>
+      <ul class="activity-list" id="activityList">
+        <li class="empty-state">Wachten op activiteit...</li>
+      </ul>
+    </div>
+    
+    <div class="card">
+      <h2>🏆 Top klanten</h2>
+      <ul class="top-customers" id="topCustomers">
+        <li class="empty-state">Geen klanten</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    let stats = {
+      totalCustomers: 0,
+      totalStamps: 0,
+      totalRedemptions: 0,
+      activeCustomers: 0,
+      topCustomers: []
+    };
+    
+    let activities = [];
+    const maxActivities = 20;
+
+    // Update stats display
+    function updateStats() {
+      document.getElementById('totalCustomers').textContent = stats.totalCustomers;
+      document.getElementById('totalStamps').textContent = stats.totalStamps;
+      document.getElementById('totalRedemptions').textContent = stats.totalRedemptions;
+      document.getElementById('activeCustomers').textContent = stats.activeCustomers;
+      
+      // Update top customers
+      const topCustomersList = document.getElementById('topCustomers');
+      if (stats.topCustomers && stats.topCustomers.length > 0) {
+        topCustomersList.innerHTML = stats.topCustomers.map(customer => `
+          <li class="customer-item">
+            <span class="customer-name">${customer.name}</span>
+            <span class="customer-stamps">⭐ ${customer.stamps}</span>
+          </li>
+        `).join('');
+      } else {
+        topCustomersList.innerHTML = '<li class="empty-state">Geen klanten</li>';
+      }
+    }
+
+    // Add activity to list
+    function addActivity(text, isNew = false) {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('nl-NL');
+      
+      activities.unshift({
+        time: timeString,
+        text: text,
+        isNew: isNew
+      });
+      
+      // Bewaar alleen laatste items
+      if (activities.length > maxActivities) {
+        activities = activities.slice(0, maxActivities);
+      }
+      
+      updateActivityList();
+    }
+
+    // Update activity list
+    function updateActivityList() {
+      const activityList = document.getElementById('activityList');
+      
+      if (activities.length === 0) {
+        activityList.innerHTML = '<li class="empty-state">Wachten op activiteit...</li>';
+        return;
+      }
+      
+      activityList.innerHTML = activities.map(activity => `
+        <li class="activity-item ${activity.isNew ? 'new' : ''}">
+          <div class="activity-time">${activity.time}</div>
+          <div class="activity-text">${activity.text}</div>
+        </li>
+      `).join('');
+      
+      // Remove 'new' class after animation
+      setTimeout(() => {
+        activities.forEach(a => a.isNew = false);
+        updateActivityList();
+      }, 2000);
+    }
+
+    // Fetch initial stats
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/stats/overview');
+        stats = await response.json();
+        updateStats();
+      } catch (error) {
+        console.error('Fout bij laden statistieken:', error);
+      }
+    }
+
+    // Fetch recent logs
+    async function loadRecentLogs() {
+      try {
+        const response = await fetch('/api/logs?limit=10');
+        const logs = await response.json();
+        
+        logs.reverse().forEach(log => {
+          let text = '';
+          switch(log.action) {
+            case 'customer_registered':
+              text = `✅ Nieuwe klant: ${log.details.name} (${log.details.email})`;
+              break;
+            case 'stamp_added':
+              text = `⭐ Stempel toegevoegd voor klant (totaal: ${log.details.totalStamps})`;
+              break;
+            case 'redemption':
+              text = `🎁 ${log.details.stampsUsed} stempels verzilverd (${log.details.remainingStamps} over)`;
+              break;
+            default:
+              text = `ℹ️ ${log.action}`;
+          }
+          addActivity(text, false);
+        });
+      } catch (error) {
+        console.error('Fout bij laden logs:', error);
+      }
+    }
+
+    // Setup SSE connection
+    const eventSource = new EventSource('/sse');
+    
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'connected') {
+        console.log('SSE verbonden:', data.timestamp);
+        return;
+      }
+      
+      // Handle different event types
+      let activityText = '';
+      
+      switch(data.type) {
+        case 'customer_registered':
+          stats.totalCustomers++;
+          activityText = `✅ Nieuwe klant: ${data.data.name} (${data.data.email})`;
+          break;
+          
+        case 'stamp_added':
+          stats.totalStamps++;
+          activityText = `⭐ Stempel toegevoegd (totaal: ${data.data.stamps})`;
+          break;
+          
+        case 'redemption':
+          stats.totalRedemptions++;
+          activityText = `🎁 ${data.data.stampsUsed} stempels verzilverd (${data.data.stamps} over)`;
+          break;
+      }
+      
+      if (activityText) {
+        addActivity(activityText, true);
+      }
+      
+      // Reload stats na elke update
+      loadStats();
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('SSE fout:', error);
+      document.getElementById('connectionStatus').textContent = 'Verbinding verbroken';
+    };
+
+    // Load initial data
+    loadStats();
+    loadRecentLogs();
+    
+    // Refresh stats periodically als backup
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>

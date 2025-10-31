@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stempel Popup - Sunmi</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    button {
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    button.secondary {
+      background: #28a745;
+      color: white;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+      font-size: 14px;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .info {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #856404;
+    }
+    
+    .customer-info {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .customer-info h3 {
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 16px;
+    }
+    
+    .customer-info p {
+      margin: 5px 0;
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .stamps-display {
+      text-align: center;
+      font-size: 24px;
+      color: #667eea;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💳 Sunmi POS Terminal</h1>
+    <p class="subtitle">Voeg stempel toe of verzilver beloningen</p>
+    
+    <div class="info">
+      ⚠️ Deze pagina vereist een geldige API-key. Voor demo: gebruik "demo-key-123"
+    </div>
+    
+    <div id="message" class="message"></div>
+    
+    <div class="form-group">
+      <label for="apiKey">API Key *</label>
+      <input type="password" id="apiKey" name="apiKey" value="demo-key-123" placeholder="Voer API key in">
+    </div>
+    
+    <div class="form-group">
+      <label for="customerSelect">Selecteer klant *</label>
+      <select id="customerSelect" required>
+        <option value="">-- Kies een klant --</option>
+      </select>
+    </div>
+    
+    <div id="customerInfo" class="customer-info">
+      <h3>Klant informatie</h3>
+      <p><strong>Naam:</strong> <span id="customerName">-</span></p>
+      <p><strong>Email:</strong> <span id="customerEmail">-</span></p>
+      <p class="stamps-display">
+        Stempels: <span id="customerStamps">0</span>
+      </p>
+    </div>
+    
+    <div class="button-group">
+      <button type="button" class="primary" id="addStampBtn" disabled>
+        ➕ Voeg stempel toe
+      </button>
+      <button type="button" class="secondary" id="redeemBtn" disabled>
+        🎁 Verzilver (10 stempels)
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const apiKeyInput = document.getElementById('apiKey');
+    const customerSelect = document.getElementById('customerSelect');
+    const customerInfo = document.getElementById('customerInfo');
+    const customerName = document.getElementById('customerName');
+    const customerEmail = document.getElementById('customerEmail');
+    const customerStamps = document.getElementById('customerStamps');
+    const addStampBtn = document.getElementById('addStampBtn');
+    const redeemBtn = document.getElementById('redeemBtn');
+    const messageDiv = document.getElementById('message');
+    
+    let customers = [];
+    let selectedCustomer = null;
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.style.display = 'block';
+      
+      setTimeout(() => {
+        messageDiv.style.display = 'none';
+      }, 4000);
+    }
+
+    // Laad klanten
+    async function loadCustomers() {
+      try {
+        const response = await fetch('/api/customers');
+        customers = await response.json();
+        
+        customerSelect.innerHTML = '<option value="">-- Kies een klant --</option>';
+        customers.forEach(customer => {
+          const option = document.createElement('option');
+          option.value = customer.id;
+          option.textContent = `${customer.name} (${customer.email}) - ${customer.stamps} stempels`;
+          customerSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Fout bij laden klanten:', error);
+        showMessage('Kon klanten niet laden', 'error');
+      }
+    }
+
+    // Update klant info
+    customerSelect.addEventListener('change', (e) => {
+      const customerId = e.target.value;
+      selectedCustomer = customers.find(c => c.id === customerId);
+      
+      if (selectedCustomer) {
+        customerName.textContent = selectedCustomer.name;
+        customerEmail.textContent = selectedCustomer.email;
+        customerStamps.textContent = selectedCustomer.stamps;
+        customerInfo.style.display = 'block';
+        addStampBtn.disabled = false;
+        redeemBtn.disabled = selectedCustomer.stamps < 10;
+      } else {
+        customerInfo.style.display = 'none';
+        addStampBtn.disabled = true;
+        redeemBtn.disabled = true;
+      }
+    });
+
+    // Voeg stempel toe
+    addStampBtn.addEventListener('click', async () => {
+      if (!selectedCustomer) return;
+      
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        showMessage('Voer een API key in', 'error');
+        return;
+      }
+      
+      addStampBtn.disabled = true;
+      addStampBtn.textContent = 'Bezig...';
+      
+      try {
+        const response = await fetch('/api/stamps', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify({ customerId: selectedCustomer.id })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showMessage(`✅ Stempel toegevoegd! ${data.customer.name} heeft nu ${data.customer.stamps} stempels`, 'success');
+          await loadCustomers();
+          // Update UI
+          selectedCustomer.stamps = data.customer.stamps;
+          customerStamps.textContent = selectedCustomer.stamps;
+          redeemBtn.disabled = selectedCustomer.stamps < 10;
+        } else {
+          showMessage(data.error || 'Fout bij toevoegen stempel', 'error');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Kon geen verbinding maken met de server', 'error');
+      } finally {
+        addStampBtn.disabled = false;
+        addStampBtn.textContent = '➕ Voeg stempel toe';
+      }
+    });
+
+    // Verzilver stempels
+    redeemBtn.addEventListener('click', async () => {
+      if (!selectedCustomer || selectedCustomer.stamps < 10) return;
+      
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        showMessage('Voer een API key in', 'error');
+        return;
+      }
+      
+      if (!confirm(`Weet je zeker dat je 10 stempels wilt verzilveren voor ${selectedCustomer.name}?`)) {
+        return;
+      }
+      
+      redeemBtn.disabled = true;
+      redeemBtn.textContent = 'Bezig...';
+      
+      try {
+        const response = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify({ customerId: selectedCustomer.id, stampsRequired: 10 })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showMessage(`🎉 Verzilverd! ${data.customer.name} heeft nu nog ${data.customer.stamps} stempels`, 'success');
+          await loadCustomers();
+          // Update UI
+          selectedCustomer.stamps = data.customer.stamps;
+          customerStamps.textContent = selectedCustomer.stamps;
+          redeemBtn.disabled = selectedCustomer.stamps < 10;
+        } else {
+          showMessage(data.error || 'Fout bij verzilveren', 'error');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Kon geen verbinding maken met de server', 'error');
+      } finally {
+        redeemBtn.disabled = false;
+        redeemBtn.textContent = '🎁 Verzilver (10 stempels)';
+      }
+    });
+
+    // Live updates via SSE
+    const eventSource = new EventSource('/sse');
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'stamp_added' || data.type === 'redemption' || data.type === 'customer_registered') {
+        loadCustomers();
+      }
+    };
+
+    // Laad klanten bij opstarten
+    loadCustomers();
+  </script>
+</body>
+</html>
