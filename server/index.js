@@ -20,8 +20,13 @@ let dbLock = Promise.resolve();
 
 // Helper: Read database
 async function readDb() {
-  const data = await fs.readFile(DB_PATH, 'utf8');
-  return JSON.parse(data);
+  try {
+    const data = await fs.readFile(DB_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Error reading database:', err);
+    throw err;
+  }
 }
 
 // Helper: Write database with queue/lock to prevent race conditions
@@ -35,8 +40,13 @@ async function writeDb(data) {
 // Helper: Send SSE event to all connected clients
 function sendSSE(event, data) {
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  sseClients.forEach(client => {
-    client.write(message);
+  sseClients.forEach((client, index) => {
+    try {
+      client.write(message);
+    } catch (err) {
+      console.error('Error writing to SSE client:', err);
+      // Client will be removed on 'close' event
+    }
   });
 }
 
@@ -297,16 +307,21 @@ app.get('/api/stats/overview', async (req, res) => {
     // Redeemed count
     const redeemedCount = db.redemptions.length;
     
-    // Top 5 customers by stamp count
-    const customerStampCounts = db.customers.map(customer => {
-      const stampCount = db.stamps.filter(s => s.customerId === customer.id && !s.redeemed).length;
-      return {
-        id: customer.id,
-        naam: customer.naam,
-        phone: customer.phone,
-        stampCount
-      };
+    // Group stamps by customerId for efficient counting
+    const stampsByCustomer = {};
+    db.stamps.forEach(stamp => {
+      if (!stamp.redeemed) {
+        stampsByCustomer[stamp.customerId] = (stampsByCustomer[stamp.customerId] || 0) + 1;
+      }
     });
+    
+    // Top 5 customers by stamp count
+    const customerStampCounts = db.customers.map(customer => ({
+      id: customer.id,
+      naam: customer.naam,
+      phone: customer.phone,
+      stampCount: stampsByCustomer[customer.id] || 0
+    }));
     
     const topCustomers = customerStampCounts
       .sort((a, b) => b.stampCount - a.stampCount)

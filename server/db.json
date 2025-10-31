@@ -3,5 +3,7 @@
   "stamps": [],
   "redemptions": [],
   "logs": [],
-  "apiKeys": ["demo-key-123"]
+  "apiKeys": [
+    "demo-key-123"
+  ]
 }
