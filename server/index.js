@@ -20,6 +20,7 @@ let db = {
   redemptions: [],
   logs: [],
   apiKeys: [],
+  adminApiKeys: [],
   tokens: []
 };
 
@@ -499,27 +500,13 @@ app.post('/api/operators/revoke', requireAdminApiKey, async (req, res) => {
     }));
     
     // Log de actie
-    const logEntry = {
-      id: uuidv4(),
-      timestamp: new Date().toISOString(),
-      action: 'token_revoke',
-      details: {
-        type: 'token_revoke',
-        ts: new Date().toISOString(),
-        performedBy: req.operator || 'admin',
-        token: token || null,
-        operatorId: operatorId || null,
-        operatorName: operatorName || null,
-        removed: removed
-      }
-    };
-    
-    currentDb.logs.push(logEntry);
-    
-    // Bewaar alleen laatste 1000 logs
-    if (currentDb.logs.length > 1000) {
-      currentDb.logs = currentDb.logs.slice(-1000);
-    }
+    addLog('token_revoke', {
+      performedBy: req.operator || 'admin',
+      token: token || null,
+      operatorId: operatorId || null,
+      operatorName: operatorName || null,
+      removed: removed
+    });
     
     // Schrijf database
     await writeDB(currentDb);
