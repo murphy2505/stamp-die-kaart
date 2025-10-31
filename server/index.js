@@ -51,6 +51,8 @@ function sendSSE(event, data) {
 }
 
 // Middleware: Verify API Key
+// NOTE: API key via query parameter is less secure than header (logs, history exposure)
+// Prefer using x-api-key header in production
 function verifyApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'] || req.query.apiKey;
   const operator = req.headers['x-operator'] || req.body?.operator || 'unknown';
